@@ -79,18 +79,15 @@ void setup(void) {
     Serial.print("HotSpt IP:");
     Serial.println(myIP);
 
-    server.on("/", getUserWiFiInfo); // Which routine to handle at root location
+    server.on("/", getUserWiFiInfo); 
 
     server.begin(); // Start server
     Serial.println("HTTP server started");
 }
 
-//===============================================================
-// LOOP
-//===============================================================
 void loop(void) {
     if (WiFi.getMode() == WIFI_AP) {
-        server.handleClient(); // Handle client requests
+        server.handleClient();
     }
 
     int packetSize = Udp.parsePacket();
