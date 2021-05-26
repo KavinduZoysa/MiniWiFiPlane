@@ -3,6 +3,7 @@
 #include <WiFiClient.h>
 #include <WiFiUdp.h>
 #include <base64.h>
+#include <stdint.h>
 
 const char *ssid = "ESP";
 const char *password = "12345678";
@@ -24,6 +25,12 @@ WiFiUDP Udp;
 
 char incomingPacket[255];
 char replyPacket[] = "Hi there! Got the message :-)";
+double voltage = 2.5;
+int dB = 34;
+unsigned long t = millis();
+bool isUrgent = false;
+int i = 0; // for testing
+uint8_t intArr[] = {4, 3, 2, 1};
 
 void connectUserWiFi() {
     // WiFi.disconnect();
@@ -79,10 +86,43 @@ void setup(void) {
     Serial.print("HotSpt IP:");
     Serial.println(myIP);
 
-    server.on("/", getUserWiFiInfo); 
+    server.on("/", getUserWiFiInfo);
 
     server.begin(); // Start server
     Serial.println("HTTP server started");
+}
+
+void send() {
+    i = i + 1;
+    // send back a reply, to the IP address and port we got the packet from
+    printf("Ip : %s\n", phoneIp.toString().c_str());
+    printf("port : %d", phonePort);
+    Udp.beginPacket(phoneIp, phonePort);
+    // Udp.beginPacket(phoneIp, 49456);
+    // int sendingPckt = dB*100 + (voltage * 10) + 1;
+    Udp.write(intArr, 4);
+    // Udp.write(replyPacket);
+    Udp.endPacket();
+    Serial.print("Sent!");
+}
+
+void recieveAndProcess() {
+    int packetSize = Udp.parsePacket();
+    if (!packetSize) {
+        return;
+    }
+    // receive incoming UDP packets
+    Serial.printf("Received %d bytes from %s, port %d\n", packetSize, Udp.remoteIP().toString().c_str(),
+                  Udp.remotePort());
+    int len = Udp.read(incomingPacket, 255);
+    if (len > 0) {
+        incomingPacket[len] = 0;
+    }
+    Serial.printf("UDP packet contents: %s\n", incomingPacket);
+
+    phoneIp = Udp.remoteIP();
+    phonePort = Udp.remotePort();
+    isUrgent = true;
 }
 
 void loop(void) {
@@ -90,24 +130,9 @@ void loop(void) {
         server.handleClient();
     }
 
-    int packetSize = Udp.parsePacket();
-    if (packetSize) {
-        // receive incoming UDP packets
-        Serial.printf("Received %d bytes from %s, port %d\n", packetSize, Udp.remoteIP().toString().c_str(),
-                      Udp.remotePort());
-        int len = Udp.read(incomingPacket, 255);
-        if (len > 0) {
-            incomingPacket[len] = 0;
-        }
-        Serial.printf("UDP packet contents: %s\n", incomingPacket);
-
-        phoneIp = Udp.remoteIP();
-        phonePort = Udp.remotePort();
-
-        // send back a reply, to the IP address and port we got the packet from
-        Udp.beginPacket(phoneIp, phonePort);
-        Udp.beginPacket(phoneIp, 49456);
-        Udp.write(replyPacket);
-        Udp.endPacket();
+    recieveAndProcess();
+    if (isUrgent && ((millis() - t) > 5000)) {
+        t = millis();
+        send();
     }
 }
