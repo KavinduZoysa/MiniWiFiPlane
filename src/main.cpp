@@ -15,7 +15,7 @@ const char *password = "12345678";
 
 char userSSID[100]; // TODO : Change this based on the requirement
 char userPassWord[100]; // TODO : Change this based on the requirement
-uint pwdDecodeLen = 0;
+uint pwdLen = 0;
 uint ssidLen = 0;
 
 IPAddress staticIp(192, 168, 1, 20);
@@ -36,7 +36,7 @@ double voltage = 2.5;
 int dB = 34;
 unsigned long t = millis();
 bool isUrgent = false;
-uint8_t intArr[] = {4, 3, 2, 1};
+uint8_t intArr[] = {52, 51, 50, 49};
 
 bool connectUserWiFi() {
     WiFi.softAPdisconnect();
@@ -74,7 +74,7 @@ bool connectUserWiFi() {
 }
 
 void saveToROM() {
-    int totLen = ssidLen + pwdDecodeLen + 3;
+    int totLen = ssidLen + pwdLen + 3;
     int nextPos = 0;
     if (totLen > EEPROM_SIZE) {
         EEPROM.begin(totLen);
@@ -93,10 +93,10 @@ void saveToROM() {
         EEPROM.commit();
     }
     nextPos = nextPos + ssidLen;
-    EEPROM.write(nextPos, pwdDecodeLen);
+    EEPROM.write(nextPos, pwdLen);
     EEPROM.commit();
     nextPos = nextPos + 1;
-    for (size_t i = 0; i < pwdDecodeLen; i++) {
+    for (size_t i = 0; i < pwdLen; i++) {
         EEPROM.write(nextPos + i, userPassWord[i]);
         EEPROM.commit();
     }    
@@ -105,20 +105,14 @@ void saveToROM() {
 void getUserWiFiInfo() {
     userssid = server.arg(0);
     ssidLen = userssid.length();
-    Serial.printf("SSID Len : %d\n", ssidLen);
     userssid.toCharArray(userSSID, ssidLen + 1);
-    for (size_t i = 0; i < ssidLen; i++) {
-        Serial.printf("%c", userSSID[i]);
-    }
-    
-    Serial.printf("SSID : %s\n", userSSID);
 
     userPwd = server.arg(1);
-    int pwdLen = userPwd.length();
-    char s[pwdLen + 1];
-    userPwd.toCharArray(s, pwdLen);
-    pwdDecodeLen = b64_decode(userPassWord, s, pwdLen - 1);
-
+    int pwdEncodedLen = userPwd.length();
+    char s[pwdEncodedLen + 1];
+    userPwd.toCharArray(s, pwdEncodedLen);
+    pwdLen = b64_decode(userPassWord, s, pwdEncodedLen);
+    
     saveToROM();
 
     server.send(200, "text/plain", "hello from esp8266!");
@@ -128,7 +122,7 @@ void getUserWiFiInfo() {
 }
 
 void readDataFromROM() {
-    int totLen = ssidLen + pwdDecodeLen + 3;
+    int totLen = ssidLen + pwdLen + 3;
     if (totLen > EEPROM_SIZE) {
         EEPROM.begin(totLen);
     } else {
@@ -144,41 +138,33 @@ void readDataFromROM() {
         Serial.printf("%c", userSSID[i]);
     }
     nextPos = nextPos + ssidLen;
-    pwdDecodeLen = EEPROM.read(nextPos);
-    Serial.printf("\n%d\n", pwdDecodeLen);
+    pwdLen = EEPROM.read(nextPos);
+    Serial.printf("\n%d\n", pwdLen);
     nextPos = nextPos + 1;
-    for (size_t i = 0; i < pwdDecodeLen; i++) {
+    for (size_t i = 0; i < pwdLen; i++) {
         userPassWord[i] = EEPROM.read(nextPos + i);
         Serial.printf("%c", userPassWord[i]);
     }
 }
 
-// For testing
 void writeToROMForTesting() {
     Serial.println("New entry!");
     userSSID[0] = 'S';
     userSSID[1] = 'L';
     userSSID[2] = 'T';
 
-    userPassWord[0] = 'b'; //bmVWZXJnMXYjdVA=
-    userPassWord[1] = 'm';
-    userPassWord[2] = 'V';
-    userPassWord[3] = 'W';
-    userPassWord[4] = 'Z';
-    userPassWord[5] = 'X';
-    userPassWord[6] = 'J';
-    userPassWord[7] = 'n';
-    userPassWord[8] = 'M';
-    userPassWord[9] = 'X';
-    userPassWord[10] = 'Y';
-    userPassWord[11] = 'j';
-    userPassWord[12] = 'd';
-    userPassWord[13] = 'V';
-    userPassWord[14] = 'A';
-    userPassWord[15] = '=';
+    userPassWord[0] = '1';
+    userPassWord[1] = '2';
+    userPassWord[2] = '3';
+    userPassWord[3] = '4';
+    userPassWord[4] = '1';
+    userPassWord[5] = '2';
+    userPassWord[6] = '3';
+    userPassWord[7] = '4';
+    userPassWord[8] = 'a';
 
     ssidLen = strlen(userSSID);
-    pwdDecodeLen = strlen(userPassWord);
+    pwdLen = strlen(userPassWord);
     saveToROM();
     readDataFromROM();
 }
@@ -201,15 +187,18 @@ void startServer() {
 void setup(void) {
     Serial.begin(115200);
     readDataFromROM();
-    connectUserWiFi();
+    // If user's wifi connection was successful, it should be indicated via bulb.
+    if (!connectUserWiFi()) {
+        startServer();
+    }
 }
 
 void send() {
     // send back a reply, to the IP address and port we got the packet from
     printf("Ip : %s\n", phoneIp.toString().c_str());
     printf("port : %d", phonePort);
-    Udp.beginPacket(phoneIp, phonePort);
-    // Udp.beginPacket(phoneIp, 49456);
+    // Udp.beginPacket(phoneIp, phonePort);
+    Udp.beginPacket(phoneIp, 49456);
     // int sendingPckt = dB*100 + (voltage * 10) + 1;
     Udp.write(intArr, 4);
     // Udp.write(replyPacket);
